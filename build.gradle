@@ -26,6 +26,8 @@ ext {
     versionPrefix = "CD"
     buildNrLoc = project.hasProperty('buildNr') ? "${buildNr}" : "000"
     currentVersion = "${versionPrefix}-${buildNrLoc}"
+    artifactGroupId = "pl.microhackaton"
+    serverPort = 12345 // ENTER YOUR PORT HERE
     
     groovyVersion = '2.3.6'
     spockVersion = '0.7-groovy-2.0'
@@ -35,20 +37,27 @@ ext {
     aspectjVersion = '1.8.1'
     microDepsSpringVersion = '0.2.1'
 
-    stubRepositoryUrl = 'http://nexus.4finance.net/content/repositories/Pipeline'
+    stubRepositoryUrl = 'http://nexus.microhackathon.pl/content/groups/public/'
     zookeeperPort = 2181
     zookeeperMockPort = 18081
 }
 
 uploadArchives {
     repositories.mavenDeployer {
-        repository(url: "http://nexus.4finance.net/content/repositories/Pipeline") {
-            authentication(userName: '', password: '')
+        repository(url: "http://nexus.microhackathon.pl/content/repositories/releases/") {
+            authentication(userName: 'deployment', password: 'deployment123')
         }
         pom.version = currentVersion
         pom.artifactId = project.name
-        pom.groupId = 'com.ofg'
+        pom.groupId = artifactGroupId
     }
+}
+
+task deployToAws(dependsOn: uploadArchives) << {
+    String json = """{"artifactId": "${project.name}", "groupId": "$artifactGroupId","version": "$currentVersion",
+                     "jvmParams": "-Dspring.profiles.active=prod -Dserver.port=$serverPort -Dservice.resolver.url=zookeeper.microhackathon.pl:2181"}"""
+    println "Sending the following json [$json]"
+    new groovyx.net.http.HTTPBuilder('http://54.73.40.79:18081/deploy').post([body: json, headers: ['Content-Type': 'application/json']])
 }
 
 task addHashFile << {
